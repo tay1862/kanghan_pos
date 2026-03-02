@@ -29,7 +29,7 @@ services:
     container_name: kanghan_pos
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "3006:3000"
     environment:
       DATABASE_URL: mysql://kanghan:${MYSQL_PASSWORD:-kanghan_pass}@mysql:3306/kanghan_pos
       JWT_SECRET: ${JWT_SECRET}
