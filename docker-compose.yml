@@ -10,12 +10,11 @@ services:
     ports:
       - "3006:3000"
     environment:
-      DATABASE_URL: mysql://root:${MYSQL_ROOT_PASSWORD}@host.docker.internal:3306/kanghan_pos
+      DATABASE_URL: mysql://root:${MYSQL_ROOT_PASSWORD}@172.17.0.1:3306/kanghan_pos
       JWT_SECRET: ${JWT_SECRET}
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
       NODE_ENV: production
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    network_mode: bridge
     command: >
       sh -c "
         node node_modules/.bin/prisma migrate deploy &&
