@@ -12,11 +12,24 @@ echo "🚀 Deploying Kanghan POS to $ENVIRONMENT..."
 
 # Load environment variables
 if [ -f ".env.$ENVIRONMENT" ]; then
-    export $(cat .env.$ENVIRONMENT | grep -v '^#' | xargs)
+    set -a
+    source ".env.$ENVIRONMENT"
+    set +a
     echo "✓ Loaded .env.$ENVIRONMENT"
+elif [ -f ".env" ]; then
+    set -a
+    source ".env"
+    set +a
+    echo "✓ Loaded .env"
 else
-    echo "⚠️  Warning: .env.$ENVIRONMENT not found, using .env"
-    export $(cat .env | grep -v '^#' | xargs)
+    echo "⚠️  Warning: No .env file found. Make sure MYSQL_ROOT_PASSWORD, JWT_SECRET, NEXT_PUBLIC_APP_URL are exported."
+fi
+
+# Check required environment variables
+if [ -z "$MYSQL_ROOT_PASSWORD" ] || [ -z "$JWT_SECRET" ]; then
+    echo "❌ Missing required environment variables: MYSQL_ROOT_PASSWORD, JWT_SECRET"
+    echo "   Please export them or create a .env.production file"
+    exit 1
 fi
 
 # Check if Docker is running
@@ -27,36 +40,30 @@ fi
 
 echo "✓ Docker is running"
 
-# Stop existing containers
-echo "🛑 Stopping existing containers..."
-docker-compose down
-
-# Build and start containers
-echo "🔨 Building and starting containers..."
-docker-compose up -d --build
-
-# Wait for MySQL to be ready
-echo "⏳ Waiting for MySQL to be ready..."
-until docker-compose exec -T mysql mysqladmin ping -h localhost --silent; do
-    echo "   MySQL is unavailable - sleeping"
-    sleep 2
-done
-
-echo "✓ MySQL is ready"
-
-# Run migrations
-echo "🔄 Running database migrations..."
-docker-compose exec -T app npx prisma migrate deploy
-
-# Seed database (only if needed)
-if [ "$ENVIRONMENT" = "development" ] || [ "$2" = "--seed" ]; then
-    echo "🌱 Seeding database..."
-    docker-compose exec -T app npx prisma db seed
+# Check if MariaDB/MySQL is running on host
+if ! mysqladmin ping --silent 2>/dev/null; then
+    echo "⚠️  Warning: MySQL/MariaDB may not be running on host port 3306"
 fi
 
-# Show logs
-echo "📋 Application logs:"
-docker-compose logs -f --tail=50 app
+# Stop existing containers
+echo "🛑 Stopping existing containers..."
+docker-compose down --remove-orphans
 
+# Build and start containers
+echo "🔨 Building and starting containers (this may take a few minutes)..."
+docker-compose up -d --build
+
+# Wait for app to start
+echo "⏳ Waiting for application to start..."
+sleep 10
+
+# Show recent logs
+echo "� Recent logs:"
+docker-compose logs --tail=30 app
+
+echo ""
 echo "✅ Deployment complete!"
-echo "🌐 Application running at: $NEXT_PUBLIC_APP_URL"
+echo "� Application running at: ${NEXT_PUBLIC_APP_URL:-http://localhost:3006}"
+echo ""
+echo "To follow live logs: docker-compose logs -f app"
+echo "To seed database manually: docker-compose exec app node node_modules/.bin/prisma db seed"
