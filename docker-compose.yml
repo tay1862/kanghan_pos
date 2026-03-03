@@ -17,6 +17,5 @@ services:
     command: >
       sh -c "
         node node_modules/.bin/prisma migrate deploy &&
-        node node_modules/.bin/prisma db seed &&
         node server.js
       "
